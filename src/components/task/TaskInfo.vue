@@ -4,6 +4,7 @@
       <div class="task-info-row">
         <TaskStatusBadge :status="task.status" @change="changeStatus($event)" />
         <div
+          testId="input-wrapper"
           class="task-info-input"
           :class="{ 'task-info-input-done': task.status === TaskStatus.Done }"
           @keyup.enter="emit('finishEdit', task)"
@@ -11,7 +12,9 @@
           @mouseenter="finisEditDebouncer.cancel()"
         >
           <input
+            testId="title-input"
             v-model="task.title"
+            :readonly="!isEditing"
             :size="task.title?.length ?? 1"
             @keyup.enter="($event.target as HTMLElement).blur()"
             @focus="
@@ -55,14 +58,17 @@ import { TaskStatus } from "@/models/task-status";
 import TaskTimeInfo from "@/components/task/TaskTimeInfo.vue";
 import { Debouncer } from "@/helpers/debouncer";
 
-const props = defineProps<{ isEditing: boolean; data: Task }>();
+const props = defineProps<{
+  isEditing: boolean;
+  data: Task;
+}>();
+
 const emit = defineEmits<{
   (event: "change", data: Task): void;
   (event: "startEdit", data: Task): void;
   (event: "finishEdit", data: Task): void;
 }>();
-
-const task = reactive(props.data);
+const task = reactive<Task>(props.data);
 const actionsOpened = ref(false);
 const lockEditing = ref(false);
 const finisEditDebouncer = new Debouncer(
