@@ -74,8 +74,6 @@ function formatTime(time: { hours: number; minutes: number }): string {
 }
 </script>
 <style scoped lang="scss">
-
-// @import "@vuepic/vue-datepicker/dist/main.css";
 .task-time-info {
   display: flex;
   flex-direction: row;

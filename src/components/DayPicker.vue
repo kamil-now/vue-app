@@ -20,7 +20,6 @@
   </div>
 </template>
 <script setup lang="ts">
-// import "@vuepic/vue-datepicker/dist/main.css";
 import Datepicker from "@vuepic/vue-datepicker";
 import NextButton from "@/components/buttons/NextButton.vue";
 import BackButton from "@/components/buttons/BackButton.vue";
