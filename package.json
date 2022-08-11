@@ -6,6 +6,8 @@
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
     "test:unit": "vue-cli-service test:unit",
+    "test:integration": "cypress run",
+    "test:integration:gui": "cypress run --headed --no-exit --browser chrome",
     "lint": "vue-cli-service lint",
     "server": "json-server --watch db.json",
     "start": "npm run serve"
@@ -16,6 +18,7 @@
     "axios": "^0.27.2",
     "core-js": "^3.8.3",
     "cypress": "^10.4.0",
+    "dotenv": "^16.0.1",
     "pinia": "^2.0.14",
     "vue": "^3.2.13"
   },
