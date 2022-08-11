@@ -15,11 +15,13 @@
     "baseUrl": ".",
     "types": [
       "webpack-env",
-      "jest"
+      "jest",
+      "cypress"
     ],
     "paths": {
       "@/*": [
-        "src/*"
+        "src/*",
+        "cypress/*"
       ]
     },
     "lib": [
