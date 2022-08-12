@@ -7,6 +7,7 @@ export default defineConfig({
   e2e: {
     baseUrl: "http://localhost:8200/",
     specPattern: "**/cypress/integration/*",
+    supportFile: '**/cypress/support/index.ts',
     excludeSpecPattern: "**/examples/*",
     viewportWidth: 1920,
     viewportHeight: 1080,

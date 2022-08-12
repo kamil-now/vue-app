@@ -1,7 +1,6 @@
 describe("Test", () => {
-  beforeEach(() => {
-    cy.visit('/');
-  });
+  beforeEach(() => cy.login());
+
   it("should work", () => {
     expect(true).to.eq(true);
   });
