@@ -1,5 +1,6 @@
 import App from '@/App.vue'
 import { msal, MsalConfiguration } from '@/plugins/msal-plugin';
+import router from '@/router';
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 
@@ -11,6 +12,7 @@ const msalConfig: MsalConfiguration = {
 }
 const app = createApp(App);
 app
+  .use(msal, msalConfig, router)
   .use(createPinia())
-  .use(msal, msalConfig)
+  .use(router)
   .mount('#app');

@@ -6,6 +6,7 @@ import {
 } from "@azure/msal-browser";
 import axios from "axios";
 import { App, Plugin } from "vue";
+import { Router } from "vue-router";
 
 export const MSAL = Symbol();
 
@@ -17,17 +18,20 @@ export type MsalConfiguration = {
 };
 
 export const msal: Plugin = {
-  async install(app: App, options: MsalConfiguration) {
-    const service = new MsalAuthService(options);
-    const accessToken = await service.signIn();
+  async install(app: App, options: MsalConfiguration, router: Router) {
+    const service = new MsalAuthService(options, router);
     app.provide(MSAL, service);
+
+    router.push({
+      path: (await service.acquireTokenSilent()) ? "/home" : "/login",
+    });
 
     axios.interceptors.request.use(
       (config) => {
         if (!config.headers) {
           config.headers = {};
         }
-        config.headers["Authorization"] = "Bearer " + accessToken;
+        config.headers["Authorization"] = "Bearer " + service.accessToken;
 
         config.headers["Content-Type"] = "application/json";
         return config;
@@ -42,10 +46,20 @@ export class MsalAuthService {
     return this.msal.getActiveAccount();
   }
 
+  get isLoggedIn(): boolean {
+    return this.activeAccount != null;
+  }
+
+  get accessToken(): string | undefined {
+    return this._accessToken;
+  }
+
   private readonly msal: PublicClientApplication;
   private readonly redirectRequest: RedirectRequest;
 
-  constructor(config: MsalConfiguration) {
+  private _accessToken: string | undefined;
+
+  constructor(config: MsalConfiguration, router: Router) {
     this.msal = new PublicClientApplication({
       auth: {
         clientId: config.clientId,
@@ -60,6 +74,18 @@ export class MsalAuthService {
         storeAuthStateInCookie: true,
       },
     });
+
+    this.msal.initialize();
+
+    router.beforeEach((to, _, next) => {
+      if (!to.path.includes("/login") && !this.isLoggedIn) {
+        console.warn(
+          `Prevented unauthorized access to ${to.path}, redirecting to /login`
+        );
+      } else if (to.path.includes("/login") && this.isLoggedIn) {
+        next({ path: "/home" });
+      } else next();
+    });
     this.redirectRequest = {
       scopes: config.scopeNames.map(
         (scope) => `api://${config.clientId}/${scope}`
@@ -67,22 +93,18 @@ export class MsalAuthService {
     };
   }
 
-  async signIn(): Promise<string> {
-    const authenticationResult = await this.handleLoginRedirect().catch(
-      async () => {
-        await this.msal.loginRedirect(this.redirectRequest);
-        return null;
-      }
-    );
-    if (authenticationResult) {
-      console.warn("Logged in as ", this.activeAccount?.username);
-      return authenticationResult.accessToken;
-    }
-    throw new Error("Invalid authentication result");
+  logout(): Promise<void> {
+    return this.msal.logoutRedirect();
   }
 
-  private handleLoginRedirect(): Promise<AuthenticationResult> {
-    return new Promise((resolve, reject) => {
+  async login(): Promise<void> {
+    if (!(await this.acquireTokenSilent())) {
+      this.msal.loginRedirect(this.redirectRequest);
+    }
+  }
+
+  acquireTokenSilent(): Promise<boolean> {
+    return new Promise((resolve) => {
       this.msal.handleRedirectPromise().then(() => {
         const accounts = this.msal.getAllAccounts();
 
@@ -97,13 +119,16 @@ export class MsalAuthService {
           this.msal
             .acquireTokenSilent(request)
             .then((tokenResponse: AuthenticationResult) => {
-              resolve(tokenResponse);
+              console.warn("Logged in as ", this.activeAccount?.username);
+              this._accessToken = tokenResponse.accessToken;
+              resolve(true);
             })
-            .catch((e: Error) => {
-              reject(e);
+            .catch((error) => {
+              console.error(error);
+              resolve(false);
             });
         } else {
-          reject(new Error("no accounts found"));
+          resolve(false);
         }
       });
     });

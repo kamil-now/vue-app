@@ -1,4 +1,4 @@
-// https://github.com/juunas11/AzureAdUiTestAutomation
+// from https://github.com/juunas11/AzureAdUiTestAutomation updated with refresh token, account cache and improved login method
 /// <reference types="cypress" />
 import { decode } from "jsonwebtoken";
 import authSettings from "../../authsettings.json";
@@ -12,14 +12,12 @@ const buildAccountEntity = (
   realm,
   localAccountId,
   username,
-  name
+  name,
+  access_token
 ) => {
   return {
     authorityType: "MSSTS",
-    // This could be filled in but it involves a bit of custom base64 encoding
-    // and would make this sample more complicated.
-    // This value does not seem to get used, so we can leave it out.
-    clientInfo: "",
+    clientInfo: access_token,
     homeAccountId,
     environment,
     realm,
@@ -64,6 +62,15 @@ const buildAccessTokenEntity = (
   };
 };
 
+const buildRefreshTokenEntity = (homeAccountId) => {
+  return {
+    clientId,
+    credentialType: "RefreshToken",
+    environment,
+    homeAccountId,
+  };
+};
+
 const injectTokens = (tokenResponse) => {
   const idToken = decode(tokenResponse.id_token);
   const localAccountId = idToken.oid || idToken.sid;
@@ -78,7 +85,8 @@ const injectTokens = (tokenResponse) => {
     realm,
     localAccountId,
     username,
-    name
+    name,
+    tokenResponse.access_token
   );
 
   const idTokenKey = `${homeAccountId}-${environment}-idtoken-${clientId}-${realm}-`;
@@ -100,18 +108,29 @@ const injectTokens = (tokenResponse) => {
     apiScopes
   );
 
-  localStorage.setItem(accountKey, JSON.stringify(accountEntity));
-  localStorage.setItem(idTokenKey, JSON.stringify(idTokenEntity));
-  localStorage.setItem(accessTokenKey, JSON.stringify(accessTokenEntity));
+  const refreshTokenKey = `${homeAccountId}-${environment}-refreshtoken-${clientId}-${realm}-${apiScopes.join(
+    " "
+  )}`;
+  const refreshTokenEntity = buildRefreshTokenEntity(homeAccountId);
+
+  const activeAccountKey = `msal.${clientId}.active-account`;
+
+  window.localStorage.setItem(activeAccountKey, localAccountId);
+  window.localStorage.setItem(
+    refreshTokenKey,
+    JSON.stringify(refreshTokenEntity)
+  );
+  window.localStorage.setItem(accountKey, JSON.stringify(accountEntity));
+  window.localStorage.setItem(idTokenKey, JSON.stringify(idTokenEntity));
+  window.localStorage.setItem(
+    accessTokenKey,
+    JSON.stringify(accessTokenEntity)
+  );
 };
 
-export const login = (cachedTokenResponse) => {
-  let tokenResponse = null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let chainable: any = cy.visit("/");
-
-  if (!cachedTokenResponse) {
-    chainable = chainable.request({
+const requestAccessToken = () => {
+  return cy
+    .request({
       url: authority + "/oauth2/v2.0/token",
       method: "POST",
       body: {
@@ -123,24 +142,20 @@ export const login = (cachedTokenResponse) => {
         password: password,
       },
       form: true,
-    });
-  } else {
-    chainable = chainable.then(() => {
-      return {
-        body: cachedTokenResponse,
-      };
-    });
-  }
-
-  chainable
-    .then((response) => {
-      injectTokens(response.body);
-      tokenResponse = response.body;
     })
-    .reload()
-    .then(() => {
-      return tokenResponse;
-    });
+    .then((res) => res.body);
+};
 
-  return chainable;
+export const login = (cachedTokenResponse) => {
+  let tokenResponse = null;
+  return (
+    cachedTokenResponse
+      ? cy.then(() => cachedTokenResponse)
+      : requestAccessToken()
+  )
+    .then((response) => {
+      injectTokens(response);
+      tokenResponse = response;
+    })
+    .then(() => tokenResponse);
 };

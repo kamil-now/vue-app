@@ -21,7 +21,8 @@
     "dotenv": "^16.0.1",
     "jsonwebtoken": "^8.5.1",
     "pinia": "^2.0.14",
-    "vue": "^3.2.13"
+    "vue": "^3.2.13",
+    "vue-router": "^4.0.13"
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",
